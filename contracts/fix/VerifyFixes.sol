@@ -18,17 +18,16 @@ contract Invoke is Context {
       token.logSender();
     }
     function transferTokens() public virtual {
-      /*this code reverts  with an InsufficientBalance even when more than the sent ether has been minted to the owner() in Token.sol
-        This is a huge problem that locks the owner out of his own minted balance
-        when he wants to say, launch  a presale for his token since he can't do anything regarding transfer of tokens from his presale address
+      /*this code works with no errors - _msgSender in ERC20.sol now equals owner()
        */
       token.transfer(receiver, 50 ether);
-      // Yet, his balance reflects his non-zero amount of tokens and further adds to his confusion and frustration
+      //The code below works fine just as it did in the buggy demonstrations at the root of contracts/
       console.log("::Presale::token::balanceOf", token.balanceOf(_msgSender()));
     }
 
     function mintTokens() public virtual  {
-        /** reverts because owner() != _msgSender() since its value is immutably cached in the private variable _owner
+        /** since owner() == _msgSender(), the onlyOwner modifier
+        does not affect the invocation of `mintToOwner` below
          */
         token.mintToOwner(50 ether);
     }
@@ -36,20 +35,20 @@ contract Invoke is Context {
 
 
 contract Token is ERC20, Ownable {
-    constructor() /*ERC20("Token", "TKN")*/ { 
-       mintToOwner(100 ether);
+    constructor() ERC20("Token", "TKN") {
+      /*mint some token to the owner only to transfer some out of it to an address in Invoke.sol*/
+      mintToOwner(100 ether);
     }
 
     function mintToOwner(uint256 amount) public onlyOwner {
-      /* reverts due to the onlyOwner modifier which is dependent on the immutable return value of owner()
-         This is because `owner` returns the value of the private variable
-         _owner which is assigned the value of msg.sender once
+      /* does not revert since owner() now equals _msgSender() anyday, anytime
+      by virtue of the workaround for _msgSender in ./Context.sol
       */
       _mint(owner(), amount);
     }
     
     function logSender() public virtual {
-        /* smart contract have a non-zero value for the length of the code of their addresses */
+        /* wallet addresses have a code.length of zero whil smart contract address do not */
         console.log("::Token::logSender::", _msgSender(), owner(), _msgSender().code.length);
         assert(owner()==_msgSender());
     }
