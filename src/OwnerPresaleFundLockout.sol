@@ -21,9 +21,7 @@ contract Presale is Context {
         when he wants to say, launch  a presale for his token since he can't do anything regarding transfer of tokens from his presale address
        */
       token.transfer(receiver, 50 ether);
-      /** Yet his balance reflects his non-zero amount of tokens and further adds to the
-          confusion and frustration
-      */
+      // Yet, his balance reflects his non-zero amount of tokens and further adds to his confusion and frustration
       console.log("::Presale::token::balanceOf", token.balanceOf(_msgSender()));
     }
 
