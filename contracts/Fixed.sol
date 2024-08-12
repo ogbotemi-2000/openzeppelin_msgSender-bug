@@ -254,16 +254,18 @@ contract Invoke is Context {
       token.logSender();
     }
     function transferTokens() public virtual {
-      /*this code works with no errors - _msgSender in ERC20.sol now equals owner()
+      /*this code works with no errors - _msgSender in ERC20.sol now equals owner() thereby
+	making owner = _msgSender() in `transfer` from the `ERC20` contract above equal owner()
        */
       token.transfer(receiver, 50 ether);
-      //The code below works fine just as it did in the buggy demonstrations at the root of contracts/
+      // The code below works fine just as it did in ./Vulnerable.sol - logs the balance of the wallet address of the smart contract owner
       console.log("::Presale::token::balanceOf", token.balanceOf(_msgSender()));
     }
 
     function mintTokens() public virtual  {
         /** since owner() == _msgSender(), the onlyOwner modifier
-        does not affect the invocation of `mintToOwner` below
+        does not affect the invocation of `mintToOwner` below when it is called from any other smart contract
+	deployed by the same owner such as `Invoke` above 
          */
         token.mintToOwner(50 ether);
     }
@@ -272,13 +274,13 @@ contract Invoke is Context {
 
 contract Token is ERC20, Ownable(msg.sender) {
     constructor() ERC20("Token", "TKN") {
-      /*mint some token to the owner only to transfer some out of it to an address in Invoke.sol*/
+      /*mint some token to the owner only to transfer some out of it to an address in the `Invoke` contract */
       mintToOwner(100 ether);
     }
 
     function mintToOwner(uint256 amount) public onlyOwner {
       /* does not revert since owner() now equals _msgSender() anyday, anytime
-      by virtue of the workaround for _msgSender in ./Context.sol
+      by virtue of the workaround for _msgSender in the `Context` contract
       */
       _mint(owner(), amount);
     }
