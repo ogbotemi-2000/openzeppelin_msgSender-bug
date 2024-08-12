@@ -234,18 +234,27 @@ contract Invoke is Context {
     function show() public {
       token.logSender();
     }
+
     function transferTokens() public virtual {
-      /*this code works with no errors - _msgSender in ERC20.sol now equals owner()
+      /*this code reverts with an InsufficientBalance error because `transfer` obtains the address of the owner
+	via _msgSender which naively returns an uncached `msg.sender` which resolves to the address of this smart contract with a default value of
+	0 in the _balances mapping in the ERC20 contract.
+	A fix is to make `_msgSender` return the original address that deployed this smart contract and the fix is present the Context contract in Fixed.sol
        */
+
       token.transfer(receiver, 50 ether);
-      //The code below works fine just as it did in the buggy demonstrations at the root of contracts/
+      /* This code will be unreachable due to the reverted error above.
+
+	`_msgSender` in this scope returns the address of who deployed the code thus, the balance is correctly logged as 100 ether as minted in the Token contract,
+	this further adds to the confusion and frustration of the deployer who may be at a loss as to how his non-zero balance logged below can cause an
+	InsufficentBalance error above. This scenario is particularly likely to happen in the event of a token presale
+	*/
       console.log("::Presale::token::balanceOf", token.balanceOf(_msgSender()));
     }
 
     function mintTokens() public virtual  {
-        /** since owner() == _msgSender(), the onlyOwner modifier
-        does not affect the invocation of `mintToOwner` below
-         */
+     /**since owner() != _msgSender(), the onlyOwner modifier applied to `mintToOwner` in Token makes the transaction revert
+     */
         token.mintToOwner(50 ether);
     }
 }
@@ -253,20 +262,25 @@ contract Invoke is Context {
 
 contract Token is ERC20, Ownable(msg.sender) {
     constructor() ERC20("Token", "TKN") {
-      /*mint some token to the owner only to transfer some out of it to an address in Invoke.sol*/
+      /*mint some token to the owner only to transfer some out of it to an address in the `Invoke` contract*/
       mintToOwner(100 ether);
     }
 
     function mintToOwner(uint256 amount) public onlyOwner {
-      /* does not revert since owner() now equals _msgSender() anyday, anytime
-      by virtue of the workaround for _msgSender in ./Context.sol
+      /*will revert when it is called in `Invoke` since the condition for the `onlyOwner` modifier - owner() == _msgSender(), is not met
       */
       _mint(owner(), amount);
     }
     
     function logSender() public virtual {
-        /* wallet addresses have a code.length of zero whil smart contract address do not */
+	/* smart contract addresses have a non-zero code.length as will be logged below to further show
+	that msg.sender equals the address of the Invoke contract
+	*/
         console.log("::Token::logSender::", _msgSender(), owner(), _msgSender().code.length);
+	/* will fail because owner() returns the immutable private variable `_owner` in Ownable. This variable keeps the 
+	correct value of the address that deployed this smart contract because it is only assigned to msg.sender in its constructor once.
+	Whereas, `_msgSender` simply returns `msg.sender` every time.
+	*/
         assert(owner()==_msgSender());
     }
 }
